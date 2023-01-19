@@ -8,8 +8,6 @@ from deap import tools
 from deap.benchmarks import rastrigin
 
 
-
-
 class Agent(object):
     def __init__(self, **kwargs):
         self.value = kwargs.get('value', None)
@@ -21,8 +19,10 @@ class Agent(object):
 
     def __str__(self):
         return str(self.value) + ":" + str(self.position)
+
     def __repr__(self):
         return str(self.value) + ":" + str(self.position)
+
     def as_dict(self):
         return self.__dict__
 
@@ -45,7 +45,7 @@ def create_agents(config):
     n_walkers = int(config['pool_size'] * config['walker_rate'])
     n_followers = (config['pool_size'] - n_walkers -
                    config['n_leaders'])//config['n_leaders']
-    
+
     # create leader agents and their followers
     for id in range(config['n_leaders']):
         new_leader = init_location(config['dimension'], config['a'],
@@ -68,22 +68,24 @@ def create_agents(config):
                                    config['b'])
         new_walker.leader = None
         pop.append(new_walker)
-    
+
     return pop, leaders
 
 
 def update(agent, leaders, phi1=2, phi2=1, phi3=20):
-    if agent.leader and agent == leaders[agent.leader]['actor']: #  leader?
+    if agent.leader and agent == leaders[agent.leader]['actor']:  # leader?
         u = (random.uniform(0, phi2) for _ in range(len(agent.position)))
         agent.position[:] = list(map(operator.add, agent.position, u))
     elif agent.leader:  # follower?
         e = (random.uniform(0, phi1) for _ in range(len(agent.position)))
         v = (random.uniform(0, phi2) for _ in range(len(agent.position)))
         # e (xl - xi)
-        v_e = map(operator.mul, e, map(operator.sub, leaders[agent.leader]['actor'].position, agent.position))
+        v_e = map(operator.mul, e, map(operator.sub,
+                                       leaders[agent.leader]['actor'].position,
+                                       agent.position))
         # xi + e(xl - xi) + v
         agent.speed = list(map(operator.add, agent.position,
-                              map(operator.add, v_e, v)))
+                           map(operator.add, v_e, v)))
 
         for i, speed in enumerate(agent.speed):
             if abs(speed) < agent.min:
@@ -91,12 +93,9 @@ def update(agent, leaders, phi1=2, phi2=1, phi3=20):
             elif abs(speed) > agent.max:
                 agent.speed[i] = math.copysign(agent.max, speed)
         agent.position[:] = list(agent.speed)
-    else: #walker
+    else:  # walker
         w = (random.uniform(0, phi3) for _ in range(len(agent.position)))
         agent.position[:] = list(map(operator.add, agent.position, w))
-
-
-
 
 
 evaluate = rastrigin  # This can be an import or a dictionary like in NetLogo
@@ -114,21 +113,22 @@ def main(config):
 
     pool, leaders = create_agents(config)
     best_leader = None
-    
+
     for g in range(config['n_gens']):
         for agent in pool:
             agent.value, = evaluate(agent.position)
             # update best_leader
             if not best_leader or best_leader.value > agent.value:
                 best_leader = copy.copy(agent)
-        
+
         for agent in pool:
             update(agent, leaders)
 
         # replace leader with best follower if any
         for id in leaders:
-            best_follower = min(leaders[id]['followers'], key= lambda a:a.value)
-            if  leaders[id]['actor'].value > best_follower.value:
+            best_follower = min(leaders[id]['followers'],
+                                key=lambda a: a.value)
+            if leaders[id]['actor'].value > best_follower.value:
                 old_leader = leaders[id]['actor']
 
                 leaders[id]['actor'] = best_follower
@@ -137,9 +137,9 @@ def main(config):
 
         print(g, best_leader)
         # Gather all the fitnesses in one list and print the stats
-        #logbook.record(gen=g, evals=len(pool), **stats.compile(pool))
-        #print(logbook.stream)
-#        config['Tiempo_Total'] = time.time() - inicio_tiempo
+        # logbook.record(gen=g, evals=len(pool), **stats.compile(pool))
+        # print(logbook.stream)
+        # config['Tiempo_Total'] = time.time() - inicio_tiempo
 
     print(logbook.chapters)
 
