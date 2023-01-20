@@ -7,14 +7,16 @@ import math
 from deap import tools
 from deap.benchmarks import rastrigin
 
+step_sigmas = [10**(1-i) for i in range(6)]
+
 
 class Agent(object):
     def __init__(self, **kwargs):
         self.value = kwargs.get('value', None)
         self.position = kwargs.get('position', [])
         self.leader = kwargs.get('leader', None)
-        self.min = kwargs.get('min', -1)
-        self.max = kwargs.get('max', 1)
+        self.min = kwargs.get('min', -5)
+        self.max = kwargs.get('max', 5)
         self.__dict__.update(kwargs)
 
     def __str__(self):
@@ -51,7 +53,7 @@ def create_agents(config):
         new_leader = init_location(config['dimension'], config['a'],
                                    config['b'])
         new_leader.leader = id
-        leaders[id] = {'actor': new_leader, 'followers': []}
+        leaders[id] = {'agent': new_leader, 'followers': []}
         pop.append(new_leader)
         # create an equal number of followers/leader (NB. round-off may yield
         # fewer agents than pop-size)
@@ -73,7 +75,7 @@ def create_agents(config):
 
 
 def update(agent, leaders, phi1=2, phi2=1, phi3=20):
-    if agent.leader and agent == leaders[agent.leader]['actor']:  # leader?
+    if agent.leader and agent == leaders[agent.leader]['agent']:  # leader?
         u = (random.uniform(0, phi2) for _ in range(len(agent.position)))
         agent.position[:] = list(map(operator.add, agent.position, u))
     elif agent.leader:  # follower?
@@ -81,20 +83,25 @@ def update(agent, leaders, phi1=2, phi2=1, phi3=20):
         v = (random.uniform(0, phi2) for _ in range(len(agent.position)))
         # e (xl - xi)
         v_e = map(operator.mul, e, map(operator.sub,
-                                       leaders[agent.leader]['actor'].position,
+                                       leaders[agent.leader]['agent'].position,
                                        agent.position))
         # xi + e(xl - xi) + v
         agent.speed = list(map(operator.add, agent.position,
                            map(operator.add, v_e, v)))
-
+        ###
+        print("---")
+        print(agent.position)
         for i, speed in enumerate(agent.speed):
             if abs(speed) < agent.min:
                 agent.speed[i] = math.copysign(agent.min, speed)
             elif abs(speed) > agent.max:
                 agent.speed[i] = math.copysign(agent.max, speed)
         agent.position[:] = list(agent.speed)
+        print(agent.position)
+        print("---")
     else:  # walker
-        w = (random.uniform(0, phi3) for _ in range(len(agent.position)))
+        w = (random.uniform(0, random.choice(step_sigmas))
+             for _ in range(len(agent.position)))
         agent.position[:] = list(map(operator.add, agent.position, w))
 
 
@@ -113,36 +120,52 @@ def main(config):
 
     pool, leaders = create_agents(config)
     best_leader = None
+    best_solution = None
 
     for g in range(config['n_gens']):
         for agent in pool:
             agent.value, = evaluate(agent.position)
-            # update best_leader
-            if not best_leader or best_leader.value > agent.value:
-                best_leader = copy.copy(agent)
+            # Best Solution
+            if not best_solution or best_solution.value > agent.value:
+                best_solution = copy.copy(agent)
 
         for agent in pool:
+            pos_before = agent.position[:]
             update(agent, leaders)
+            print("positions", pos_before, agent.position)
 
         # replace leader with best follower if any
         for id in leaders:
             best_follower = min(leaders[id]['followers'],
                                 key=lambda a: a.value)
-            if leaders[id]['actor'].value > best_follower.value:
-                old_leader = leaders[id]['actor']
+            if leaders[id]['agent'].value > best_follower.value:
+                old_leader = leaders[id]['agent']
 
-                leaders[id]['actor'] = best_follower
+                leaders[id]['agent'] = best_follower
                 leaders[id]['followers'].remove(best_follower)
                 leaders[id]['followers'].append(old_leader)
 
-        print(g, best_leader)
+        # update best_leader
+        best_leader_id = min(leaders,
+                             key=lambda id: leaders[id]['agent'].value)
+        best_leader = leaders[best_leader_id]
+
+        walkers = [agent for agent in pool if not agent.leader]
+        best_walker = min(walkers, key=lambda a: a.value)
+
+        if best_walker.value > best_leader['agent'].value:
+            best_leader['agent'].position = best_walker.position[:]
+
+        walkers[0].position = best_solution.position[:]
+
+        print(g, best_solution)
         # Gather all the fitnesses in one list and print the stats
         # logbook.record(gen=g, evals=len(pool), **stats.compile(pool))
         # print(logbook.stream)
         # config['Tiempo_Total'] = time.time() - inicio_tiempo
 
     print(logbook.chapters)
-
+    print(best_solution)
     return config
 
 
@@ -151,13 +174,13 @@ if __name__ == "__main__":
     # with open(r"..\config.json", "r") as conf_file:
     #     config = json.load(conf_file)
     config = {'list_size': 2,
-              'pool_size': 100,
+              'pool_size': 20,
               'walker_rate': 0.2,
               'dimension': 2,
               'a': -5.0,
               'b': 5.0,
               'n_leaders': 4,
-              'n_gens': 100
+              'n_gens': 2
               }
     results = main(config)
     # print(results)
