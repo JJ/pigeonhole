@@ -20,7 +20,7 @@ class Agent(object):
         self.__dict__.update(kwargs)
 
     def __str__(self):
-        return str(self.value) + ":" + str(self.position)
+        return str(self.value) + ":" + str(self.position) + ":"+ str(self.leader)
 
     def __repr__(self):
         return str(self.value) + ":" + str(self.position)
@@ -84,8 +84,6 @@ def update(agent, leaders, phi1=2, phi2=1, phi3=20):
     #   agent.position[:] = new_position
         pass
     elif agent.leader is not None:  # follower?
-        print("#####")
-        print("Leader:", leaders[agent.leader]['agent'])
         e = list(random.uniform(0, phi1) for _ in range(len(agent.position)))
         v = list(random.uniform(0, phi2) for _ in range(len(agent.position)))
         # e (xl - xi)
@@ -112,8 +110,7 @@ def update(agent, leaders, phi1=2, phi2=1, phi3=20):
             agent.position[i] = math.copysign(agent.min, position)
         elif abs(position) > agent.max:
             agent.position[i] = math.copysign(agent.max, position)
-    print("update sign:", agent.position)
-    print("---")
+
 
 
 evaluate = rastrigin  # This can be an import or a dictionary like in NetLogo
@@ -160,13 +157,11 @@ def main(config):
 
         if best_walker.value < best_leader['agent'].value:
             best_leader['agent'].position = best_walker.position[:]
+        print(g)
         for agent in pool:
-            print("-----", g)
-            pos_before = agent.position[:]
             update(agent, leaders)
-            print("positions", pos_before, agent.position)
+            print(agent)
 
-            print("----->", g)
 
 
 
