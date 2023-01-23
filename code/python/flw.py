@@ -40,6 +40,8 @@ def init_location(size, pmin, pmax, smin=None, smax=None):
     # agent.smax = smax
     return agent
 
+# def update_min_max(agent):
+
 
 def create_agents(config):
     pop = []  # New population
@@ -75,34 +77,43 @@ def create_agents(config):
 
 
 def update(agent, leaders, phi1=2, phi2=1, phi3=20):
-    if agent.leader and agent == leaders[agent.leader]['agent']:  # leader?
-        u = (random.uniform(0, phi2) for _ in range(len(agent.position)))
-        agent.position[:] = list(map(operator.add, agent.position, u))
-    elif agent.leader:  # follower?
-        e = (random.uniform(0, phi1) for _ in range(len(agent.position)))
-        v = (random.uniform(0, phi2) for _ in range(len(agent.position)))
+
+    if agent.leader is not None and agent == leaders[agent.leader]['agent']:  # leader?
+    #    u = (random.uniform(0, phi2) for _ in range(len(agent.position)))
+    #   new_position = list(map(operator.add, agent.position, u))
+    #   agent.position[:] = new_position
+        pass
+    elif agent.leader is not None:  # follower?
+        print("#####")
+        print("Leader:", leaders[agent.leader]['agent'])
+        e = list(random.uniform(0, phi1) for _ in range(len(agent.position)))
+        v = list(random.uniform(0, phi2) for _ in range(len(agent.position)))
         # e (xl - xi)
-        v_e = map(operator.mul, e, map(operator.sub,
+        v_e = list(map(operator.mul, e, map(operator.sub,
                                        leaders[agent.leader]['agent'].position,
-                                       agent.position))
+                                       agent.position)))
+        new_position = list(map(operator.add, agent.position,
+                                v_e))
         # xi + e(xl - xi) + v
-        agent.speed = list(map(operator.add, agent.position,
-                           map(operator.add, v_e, v)))
-        ###
-        print("---")
-        print(agent.position)
-        for i, speed in enumerate(agent.speed):
-            if abs(speed) < agent.min:
-                agent.speed[i] = math.copysign(agent.min, speed)
-            elif abs(speed) > agent.max:
-                agent.speed[i] = math.copysign(agent.max, speed)
-        agent.position[:] = list(agent.speed)
-        print(agent.position)
-        print("---")
-    else:  # walker
-        w = (random.uniform(0, random.choice(step_sigmas))
-             for _ in range(len(agent.position)))
-        agent.position[:] = list(map(operator.add, agent.position, w))
+        # new_position = list(map(operator.add, agent.position,
+        #                   map(operator.add, v_e, v)))
+
+        agent.position[:] = new_position
+
+    elif agent.leader is None:  # walker
+        w = [(random.uniform(0, random.choice(step_sigmas)))
+             for _ in range(len(agent.position))]
+        new_position = list(map(operator.add, agent.position, w))
+        agent.position[:] = new_position
+
+    before = agent.position[:]
+    for i, position in enumerate(agent.position):
+        if abs(position) < agent.min:
+            agent.position[i] = math.copysign(agent.min, position)
+        elif abs(position) > agent.max:
+            agent.position[i] = math.copysign(agent.max, position)
+    print("update sign:", agent.position)
+    print("---")
 
 
 evaluate = rastrigin  # This can be an import or a dictionary like in NetLogo
@@ -128,12 +139,6 @@ def main(config):
             # Best Solution
             if not best_solution or best_solution.value > agent.value:
                 best_solution = copy.copy(agent)
-
-        for agent in pool:
-            pos_before = agent.position[:]
-            update(agent, leaders)
-            print("positions", pos_before, agent.position)
-
         # replace leader with best follower if any
         for id in leaders:
             best_follower = min(leaders[id]['followers'],
@@ -150,11 +155,20 @@ def main(config):
                              key=lambda id: leaders[id]['agent'].value)
         best_leader = leaders[best_leader_id]
 
-        walkers = [agent for agent in pool if not agent.leader]
+        walkers = [agent for agent in pool if agent.leader is None]
         best_walker = min(walkers, key=lambda a: a.value)
 
-        if best_walker.value > best_leader['agent'].value:
+        if best_walker.value < best_leader['agent'].value:
             best_leader['agent'].position = best_walker.position[:]
+        for agent in pool:
+            print("-----", g)
+            pos_before = agent.position[:]
+            update(agent, leaders)
+            print("positions", pos_before, agent.position)
+
+            print("----->", g)
+
+
 
         walkers[0].position = best_solution.position[:]
 
@@ -165,7 +179,7 @@ def main(config):
         # config['Tiempo_Total'] = time.time() - inicio_tiempo
 
     print(logbook.chapters)
-    print(best_solution)
+    print("best solution: ", best_solution)
     return config
 
 
@@ -180,7 +194,7 @@ if __name__ == "__main__":
               'a': -5.0,
               'b': 5.0,
               'n_leaders': 4,
-              'n_gens': 2
+              'n_gens': 100
               }
     results = main(config)
     # print(results)
