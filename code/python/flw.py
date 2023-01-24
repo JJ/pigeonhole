@@ -99,18 +99,28 @@ def update(agent, leaders, phi1=2, phi2=1, phi3=20):
         agent.position[:] = new_position
 
     elif agent.leader is None:  # walker
-        w = [(random.uniform(0, random.choice(step_sigmas)))
-             for _ in range(len(agent.position))]
+        w = list(random.uniform(0, random.choice(step_sigmas)) for _ in range(len(agent.position)))
         new_position = list(map(operator.add, agent.position, w))
         agent.position[:] = new_position
 
-    before = agent.position[:]
     for i, position in enumerate(agent.position):
         if abs(position) < agent.min:
             agent.position[i] = math.copysign(agent.min, position)
         elif abs(position) > agent.max:
             agent.position[i] = math.copysign(agent.max, position)
 
+def print_pool(g, pool, leaders):
+    print("Gen :", g)
+    for agent_id in leaders:
+        print("leader:", agent_id, leaders[agent_id]['agent'])
+        for f in leaders[agent_id]['followers']:
+            print(f)
+    print("Walkers:")
+    for walker in [agent for agent in pool if agent.leader is None]:
+        print(walker)
+            
+
+    print("#####")
 
 
 evaluate = rastrigin  # This can be an import or a dictionary like in NetLogo
@@ -157,12 +167,11 @@ def main(config):
 
         if best_walker.value < best_leader['agent'].value:
             best_leader['agent'].position = best_walker.position[:]
-        print(g)
+
         for agent in pool:
             update(agent, leaders)
-            print(agent)
 
-
+        print_pool(g, pool, leaders)
 
 
         walkers[0].position = best_solution.position[:]
@@ -173,7 +182,7 @@ def main(config):
         # print(logbook.stream)
         # config['Tiempo_Total'] = time.time() - inicio_tiempo
 
-    print(logbook.chapters)
+    # print(logbook.chapters)
     print("best solution: ", best_solution)
     return config
 
@@ -189,7 +198,7 @@ if __name__ == "__main__":
               'a': -5.0,
               'b': 5.0,
               'n_leaders': 4,
-              'n_gens': 100
+              'n_gens': 10
               }
     results = main(config)
     # print(results)
