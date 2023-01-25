@@ -6,6 +6,8 @@ import operator
 import math
 from deap import tools
 from deap.benchmarks import rastrigin
+from itertools import repeat
+
 
 step_sigmas = [10**(1-i) for i in range(6)]
 
@@ -40,9 +42,6 @@ def init_location(size, pmin, pmax, smin=None, smax=None):
     # agent.smax = smax
     return agent
 
-# def update_min_max(agent):
-
-
 def create_agents(config):
     pop = []  # New population
     leaders = {}  # Leaders
@@ -75,9 +74,19 @@ def create_agents(config):
 
     return pop, leaders
 
+def replace_leaders(leaders):
+    # replace leader with best follower if any
+    for id in leaders:
+        best_follower = min(leaders[id]['followers'],
+                            key=lambda a: a.value)
+        if leaders[id]['agent'].value > best_follower.value:
+            old_leader = leaders[id]['agent']
+
+            leaders[id]['agent'] = best_follower
+            leaders[id]['followers'].remove(best_follower)
+            leaders[id]['followers'].append(old_leader)
 
 def update(agent, leaders, phi1=2, phi2=1, phi3=20):
-
     if agent.leader is not None and agent == leaders[agent.leader]['agent']:  # leader?
     #    u = (random.uniform(0, phi2) for _ in range(len(agent.position)))
     #   new_position = list(map(operator.add, agent.position, u))
@@ -123,59 +132,61 @@ def print_pool(g, pool, leaders):
     print("#####")
 
 
+def get_best_leader(leaders):
+    # return best_leader
+    best_leader_id = min(leaders,
+                         key=lambda id: leaders[id]['agent'].value)
+    best_leader = leaders[best_leader_id]
+    return best_leader
+
+
+def get_walkers(pool):
+    return [agent for agent in pool if agent.leader is None]
+
+
+def get_best_walker(pool):
+    walkers = get_walkers(pool)
+    return min(walkers, key=lambda a: a.value)
+
+
+def elitism(pool, best_solution):
+    walkers = get_walkers(pool)
+    walker = random.choice(walkers)
+    walker.position = best_solution.position[:]
+
 evaluate = rastrigin  # This can be an import or a dictionary like in NetLogo
 
 
 def main(config):
-    stats = tools.Statistics(lambda ind: ind.value)
-    stats.register("avg", np.mean)
-    stats.register("std", np.std)
-    stats.register("min", np.min)
-    stats.register("max", np.max)
-
-    logbook = tools.Logbook()
-    logbook.header = ["steps", "evals"] + stats.fields
-
     pool, leaders = create_agents(config)
     best_leader = None
     best_solution = None
 
     for g in range(config['n_gens']):
+        # evaluate agents and update best solution  
         for agent in pool:
             agent.value, = evaluate(agent.position)
-            # Best Solution
+            # best solution
             if not best_solution or best_solution.value > agent.value:
                 best_solution = copy.copy(agent)
-        # replace leader with best follower if any
-        for id in leaders:
-            best_follower = min(leaders[id]['followers'],
-                                key=lambda a: a.value)
-            if leaders[id]['agent'].value > best_follower.value:
-                old_leader = leaders[id]['agent']
 
-                leaders[id]['agent'] = best_follower
-                leaders[id]['followers'].remove(best_follower)
-                leaders[id]['followers'].append(old_leader)
+        replace_leaders(leaders)
+        
 
-        # update best_leader
-        best_leader_id = min(leaders,
-                             key=lambda id: leaders[id]['agent'].value)
-        best_leader = leaders[best_leader_id]
-
-        walkers = [agent for agent in pool if agent.leader is None]
-        best_walker = min(walkers, key=lambda a: a.value)
-
+        # Move best_leader to best walker if better
+        best_leader = get_best_leader(leaders)
+        best_walker = get_best_walker(pool) 
         if best_walker.value < best_leader['agent'].value:
             best_leader['agent'].position = best_walker.position[:]
-
+        
+        # update positions
         for agent in pool:
             update(agent, leaders)
 
+        # elistism
+        elitism(pool, best_solution)
+
         print_pool(g, pool, leaders)
-
-
-        walkers[0].position = best_solution.position[:]
-
         print(g, best_solution)
         # Gather all the fitnesses in one list and print the stats
         # logbook.record(gen=g, evals=len(pool), **stats.compile(pool))
@@ -198,7 +209,7 @@ if __name__ == "__main__":
               'a': -5.0,
               'b': 5.0,
               'n_leaders': 4,
-              'n_gens': 10
+              'n_gens': 20
               }
     results = main(config)
     # print(results)
