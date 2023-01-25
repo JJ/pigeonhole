@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import copy
 
 import numpy as np
@@ -22,7 +24,7 @@ class Agent(object):
         self.__dict__.update(kwargs)
 
     def __str__(self):
-        return str(self.value) + ":" + str(self.position) + ":"+ str(self.leader)
+        return str(self.value) + ":" + str(self.position) + ":" + str(self.leader)
 
     def __repr__(self):
         return str(self.value) + ":" + str(self.position)
@@ -41,6 +43,7 @@ def init_location(size, pmin, pmax, smin=None, smax=None):
     # agent.smin = smin
     # agent.smax = smax
     return agent
+
 
 def create_agents(config):
     pop = []  # New population
@@ -74,6 +77,7 @@ def create_agents(config):
 
     return pop, leaders
 
+
 def replace_leaders(leaders):
     # replace leader with best follower if any
     for id in leaders:
@@ -86,19 +90,21 @@ def replace_leaders(leaders):
             leaders[id]['followers'].remove(best_follower)
             leaders[id]['followers'].append(old_leader)
 
+
 def update(agent, leaders, phi1=2, phi2=1, phi3=20):
-    if agent.leader is not None and agent == leaders[agent.leader]['agent']:  # leader?
-    #    u = (random.uniform(0, phi2) for _ in range(len(agent.position)))
-    #   new_position = list(map(operator.add, agent.position, u))
-    #   agent.position[:] = new_position
+    # leader?
+    if agent.leader is not None and agent == leaders[agent.leader]['agent']:
+        #    u = (random.uniform(0, phi2) for _ in range(len(agent.position)))
+        #   new_position = list(map(operator.add, agent.position, u))
+        #   agent.position[:] = new_position
         pass
     elif agent.leader is not None:  # follower?
         e = list(random.uniform(0, phi1) for _ in range(len(agent.position)))
         v = list(random.uniform(0, phi2) for _ in range(len(agent.position)))
         # e (xl - xi)
         v_e = list(map(operator.mul, e, map(operator.sub,
-                                       leaders[agent.leader]['agent'].position,
-                                       agent.position)))
+                                            leaders[agent.leader]['agent'].position,
+                                            agent.position)))
         new_position = list(map(operator.add, agent.position,
                                 v_e))
         # xi + e(xl - xi) + v
@@ -108,7 +114,8 @@ def update(agent, leaders, phi1=2, phi2=1, phi3=20):
         agent.position[:] = new_position
 
     elif agent.leader is None:  # walker
-        w = list(random.uniform(0, random.choice(step_sigmas)) for _ in range(len(agent.position)))
+        w = list(random.uniform(0, random.choice(step_sigmas))
+                 for _ in range(len(agent.position)))
         new_position = list(map(operator.add, agent.position, w))
         agent.position[:] = new_position
 
@@ -117,6 +124,7 @@ def update(agent, leaders, phi1=2, phi2=1, phi3=20):
             agent.position[i] = math.copysign(agent.min, position)
         elif abs(position) > agent.max:
             agent.position[i] = math.copysign(agent.max, position)
+
 
 def print_pool(g, pool, leaders):
     print("Gen :", g)
@@ -127,7 +135,6 @@ def print_pool(g, pool, leaders):
     print("Walkers:")
     for walker in [agent for agent in pool if agent.leader is None]:
         print(walker)
-            
 
     print("#####")
 
@@ -154,6 +161,7 @@ def elitism(pool, best_solution):
     walker = random.choice(walkers)
     walker.position = best_solution.position[:]
 
+
 evaluate = rastrigin  # This can be an import or a dictionary like in NetLogo
 
 
@@ -163,7 +171,7 @@ def main(config):
     best_solution = None
 
     for g in range(config['n_gens']):
-        # evaluate agents and update best solution  
+        # evaluate agents and update best solution
         for agent in pool:
             agent.value, = evaluate(agent.position)
             # best solution
@@ -171,14 +179,13 @@ def main(config):
                 best_solution = copy.copy(agent)
 
         replace_leaders(leaders)
-        
 
         # Move best_leader to best walker if better
         best_leader = get_best_leader(leaders)
-        best_walker = get_best_walker(pool) 
+        best_walker = get_best_walker(pool)
         if best_walker.value < best_leader['agent'].value:
             best_leader['agent'].position = best_walker.position[:]
-        
+
         # update positions
         for agent in pool:
             update(agent, leaders)
