@@ -11,7 +11,7 @@ from deap.benchmarks import rastrigin
 from itertools import repeat
 
 
-step_sigmas = [10**(1-i) for i in range(6)]
+step_sigmas = [10**(1-i) for i in range(7)]
 
 
 class Agent(object):
@@ -114,10 +114,13 @@ def update(agent, leaders, phi1=2, phi2=1, phi3=20):
         agent.position[:] = new_position
 
     elif agent.leader is None:  # walker
-        w = list(random.uniform(0, random.choice(step_sigmas))
-                 for _ in range(len(agent.position)))
-        new_position = list(map(operator.add, agent.position, w))
-        agent.position[:] = new_position
+        # w = list(random.uniform(0, random.choice(step_sigmas))
+        #          for _ in range(len(agent.position)))
+        # new_position = list(map(operator.add, agent.position, w))
+        # agent.position[:] = new_position
+        wi = random.uniform(0, random.choice(step_sigmas))
+        pi = random.randint(0,len(agent.position)-1)
+        agent.position[pi]+=wi 
 
     for i, position in enumerate(agent.position):
         if abs(position) < agent.min:
@@ -210,13 +213,13 @@ if __name__ == "__main__":
     # with open(r"..\config.json", "r") as conf_file:
     #     config = json.load(conf_file)
     config = {'list_size': 2,
-              'pool_size': 20,
+              'pool_size': 21,
               'walker_rate': 0.2,
               'dimension': 2,
               'a': -5.0,
               'b': 5.0,
               'n_leaders': 4,
-              'n_gens': 20
+              'n_gens': 500
               }
     results = main(config)
     # print(results)
