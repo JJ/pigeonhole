@@ -19,7 +19,7 @@ class Agent(object):
         self.value = kwargs.get('value', None)
         self.position = kwargs.get('position', [])
         self.leader = kwargs.get('leader', None)
-        self.min = kwargs.get('min', -5)
+        self.min = kwargs.get('min', 0)
         self.max = kwargs.get('max', 5)
         self.__dict__.update(kwargs)
 
@@ -172,8 +172,21 @@ def main(config):
     pool, leaders = create_agents(config)
     best_leader = None
     best_solution = None
-
+    # evaluate agents and update best solution
+    for agent in pool:
+        agent.value, = evaluate(agent.position)
+        # best solution
+        if not best_solution or best_solution.value > agent.value:
+            best_solution = copy.copy(agent)
+    print_pool(-1,pool,leaders)
     for g in range(config['n_gens']):
+        # elistism
+        elitism(pool, best_solution)
+
+        # update positions  (Follow & Walk)
+        for agent in pool:
+            update(agent, leaders)
+
         # evaluate agents and update best solution
         for agent in pool:
             agent.value, = evaluate(agent.position)
@@ -181,21 +194,15 @@ def main(config):
             if not best_solution or best_solution.value > agent.value:
                 best_solution = copy.copy(agent)
 
-        replace_leaders(leaders)
-
         # Move best_leader to best walker if better
         best_leader = get_best_leader(leaders)
         best_walker = get_best_walker(pool)
         if best_walker.value < best_leader['agent'].value:
             best_leader['agent'].position = best_walker.position[:]
-
-        # update positions
-        for agent in pool:
-            update(agent, leaders)
-
-        # elistism
-        elitism(pool, best_solution)
-
+            best_leader['agent'].value = best_walker.value
+        
+        replace_leaders(leaders)
+        
         print_pool(g, pool, leaders)
         print(g, best_solution)
         # Gather all the fitnesses in one list and print the stats
@@ -219,7 +226,7 @@ if __name__ == "__main__":
               'a': -5.0,
               'b': 5.0,
               'n_leaders': 4,
-              'n_gens': 500
+              'n_gens': 10
               }
     results = main(config)
     # print(results)
